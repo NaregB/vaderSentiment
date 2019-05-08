@@ -60,7 +60,7 @@ BOOSTER_DICT = \
      "so": B_INCR, "substantially": B_INCR,
      "thoroughly": B_INCR, "totally": B_INCR, "tremendously": B_INCR,
      "uber": B_INCR, "unbelievably": B_INCR, "unusually": B_INCR, "utterly": B_INCR,
-     "very": B_INCR,
+     "very": B_INCR, "sofa king" : B_INCR,
      "almost": B_DECR, "barely": B_DECR, "hardly": B_DECR, "just enough": B_DECR,
      "kind of": B_DECR, "kinda": B_DECR, "kindof": B_DECR, "kind-of": B_DECR,
      "less": B_DECR, "little": B_DECR, "marginally": B_DECR, "occasionally": B_DECR, "partly": B_DECR,
@@ -268,8 +268,9 @@ class SentimentIntensityAnalyzer(object):
             if item.lower() in BOOSTER_DICT:
                 sentiments.append(valence)
                 continue
-            if (i < len(words_and_emoticons) - 1 and item.lower() == "kind" and
-                    words_and_emoticons[i + 1].lower() == "of"):
+
+            temp_word = item.join(" " + "of")
+            if i < len(words_and_emoticons) - 1 and ((temp_word in BOOSTER_DICT) or (item.lower() == "sofa" and words_and_emoticons[i + 1].lower() == "king")):
                 sentiments.append(valence)
                 continue
 
