@@ -59,3 +59,6 @@ Temporary Items
 # personal notes and help
 *.notes
 *.help
+
+# test files
+test.py
