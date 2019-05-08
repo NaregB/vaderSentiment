@@ -296,7 +296,7 @@ class SentimentIntensityAnalyzer(object):
                 else:
                     valence -= C_INCR
 
-            for start_i in range(0, 3):
+            for start_i in range(0, 4):
                 # dampen the scalar modifier of preceding words and emoticons
                 # (excluding the ones that immediately preceed the item) based
                 # on their distance from the current item.
@@ -421,6 +421,9 @@ class SentimentIntensityAnalyzer(object):
                 valence = valence
             elif negated([words_and_emoticons_lower[i - (start_i + 1)]]):  # 3 words preceding the lexicon word position
                 valence = valence * N_SCALAR
+        else:
+            negated([words_and_emoticons_lower[i - (start_i + 1)]])  # 3 words preceding the lexicon word position
+            valence = valence * N_SCALAR
         return valence
 
     def _punctuation_emphasis(self, text):
