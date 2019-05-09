@@ -10,15 +10,13 @@ Hutto, C.J. & Gilbert, E.E. (2014). VADER: A Parsimonious Rule-based Model for
 Sentiment Analysis of Social Media Text. Eighth International Conference on
 Weblogs and Social Media (ICWSM-14). Ann Arbor, MI, June 2014.
 """
+import math
 import os
 import re
-import math
 import string
-import requests
-import json
-from itertools import product
 from inspect import getsourcefile
 from io import open
+from itertools import product
 
 # ##Constants##
 
@@ -178,8 +176,7 @@ class SentiText(object):
         # remove singletons
         words_only = set(w for w in words_only if len(w) > 1)
         # the product gives ('cat', ',') and (',', 'cat')
-        punc_before = {''.join(p): p[1]
-                       for p in product(PUNC_LIST, words_only)}
+        punc_before = {''.join(p): p[1] for p in product(PUNC_LIST, words_only)}
         punc_after = {''.join(p): p[0] for p in product(words_only, PUNC_LIST)}
         words_punc_dict = punc_before
         words_punc_dict.update(punc_after)
@@ -216,8 +213,7 @@ class SentimentIntensityAnalyzer(object):
 
     def __init__(self, lexicon_file="vader_lexicon.txt", emoji_lexicon="emoji_utf8_lexicon.txt"):
         _this_module_file_path_ = os.path.abspath(getsourcefile(lambda: 0))
-        lexicon_full_filepath = os.path.join(
-            os.path.dirname(_this_module_file_path_), lexicon_file)
+        lexicon_full_filepath = os.path.join(os.path.dirname(_this_module_file_path_), lexicon_file)
         with open(lexicon_full_filepath, encoding='utf-8') as f:
             self.lexicon_full_filepath = f.read()
         self.lexicon = self.make_lex_dict()
@@ -282,7 +278,8 @@ class SentimentIntensityAnalyzer(object):
                 continue
 
             temp_word = item.join(" " + "of")
-            if i < len(words_and_emoticons) - 1 and ((temp_word in BOOSTER_DICT) or (item.lower() == "sofa" and words_and_emoticons[i + 1].lower() == "king")):
+            if i < len(words_and_emoticons) - 1 and ((temp_word in BOOSTER_DICT) or (
+                    item.lower() == "sofa" and words_and_emoticons[i + 1].lower() == "king")):
                 sentiments.append(valence)
                 continue
 
@@ -321,8 +318,7 @@ class SentimentIntensityAnalyzer(object):
                     if start_i == 2 and s != 0:
                         s = s * 0.9
                     valence = valence + s
-                    valence = self._negation_check(
-                        valence, words_and_emoticons, start_i, i)
+                    valence = self._negation_check(valence, words_and_emoticons, start_i, i)
 
             valence = self._least_check(valence, words_and_emoticons, i)
         sentiments.append(valence)
