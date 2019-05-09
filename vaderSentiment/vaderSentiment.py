@@ -33,6 +33,9 @@ REGEX_REMOVE_PUNCTUATION = re.compile('[%s]' % re.escape(string.punctuation))
 
 PUNC_LIST = [".", "!", "?", ",", ";", ":", "-", "'", "\"",
              "!!", "!!!", "??", "???", "?!?", "!?!", "?!?!", "!?!?"]
+PUNC_LIST_STOP_NEGATION = [".", "!", "?", ",", ";", ":", "-",
+             "!!", "!!!", "??", "???", "?!?", "!?!", "?!?!", "!?!?"]
+
 NEGATE = \
     ["aint", "arent", "cannot", "cant", "couldnt", "darent", "didnt", "doesnt",
      "ain't", "aren't", "can't", "couldn't", "daren't", "didn't", "doesn't",
@@ -157,6 +160,7 @@ class SentiText(object):
         if not isinstance(text, str):
             text = str(text).encode('utf-8')
         self.text = text
+        self.shortened_text = set(w for w in text.split() if len(w) > 1)
         self.words_and_emoticons = self._words_and_emoticons()
         # doesn't separate words from\
         # adjacent punctuation (keeps emoticons & contractions)
@@ -278,19 +282,127 @@ class SentimentIntensityAnalyzer(object):
                 continue
 
             temp_word = item.join(" " + "of")
-            if i < len(words_and_emoticons) - 1 and ((temp_word in BOOSTER_DICT) or (
-                    item.lower() == "sofa" and words_and_emoticons[i + 1].lower() == "king")):
+            if i < len(words_and_emoticons) - 1 and ((temp_word in BOOSTER_DICT) or (item.lower() == "sofa" and words_and_emoticons[i + 1].lower() == "king")):
                 sentiments.append(valence)
                 continue
 
-            sentiments = self.sentiment_valence(
-                valence, sentitext, item, i, sentiments)
+        sentiments = self.sentiment_val(sentitext, sentiments)
+
+        sentiments = self.booster_check(sentitext, sentiments)
+
+        sentiments = self.negation_check(sentitext, sentiments)
 
         sentiments = self._but_check(words_and_emoticons, sentiments)
 
         valence_dict = self.score_valence(sentiments, text)
 
         return valence_dict
+
+
+    def sentiment_val(self, sentitext, sentiments):
+        is_cap_diff = sentitext.is_cap_diff
+        words_and_emoticons = sentitext.words_and_emoticons
+
+        for word in words_and_emoticons:
+            word_lower = word.lower()
+            valence = 0
+            if word_lower in self.lexicon:
+                valence = self.lexicon[word_lower]
+                if word.isupper and is_cap_diff:
+                    if valence > 0:
+                        valence += C_INCR
+                    else:
+                        valence -= C_INCR
+            sentiments.append(valence)
+
+        return sentiments
+
+    def booster_check(self, sentitext, sentiments):
+        is_cap_diff = sentitext.is_cap_diff
+        words_and_emoticons = sentitext.words_and_emoticons
+
+        for i, score in enumerate(sentiments):
+            if score != 0:
+                valence = score
+                for start_i in range(0, 3):
+                    # dampen the scalar modifier of preceding words and emoticons
+                    # (excluding the ones that immediately preceed the item) based
+                    # on their distance from the current item.
+                    if i > start_i and words_and_emoticons[i - (start_i + 1)].lower() not in self.lexicon:
+                        s = scalar_inc_dec(words_and_emoticons[i - (start_i + 1)], valence, is_cap_diff)
+                        if start_i == 1 and s != 0:
+                            s = s * 0.95
+                        if start_i == 2 and s != 0:
+                            s = s * 0.9
+                        valence = valence + s
+                        sentiments[i] = valence
+        return sentiments
+
+    def negation_check(self, sentitext, sentiments):
+        text = sentitext.shortened_text
+        words_with_punc = text.split()
+        words_and_emoticons = sentitext.words_and_emoticons
+
+        i = 0
+        while i <= len(words_and_emoticons) - 1:
+            word_lower = words_and_emoticons[i].lower()
+            if word_lower in NEGATE or word_lower.endswith("n't"):
+                if word_lower != 'least' and word_lower != 'without' and word_lower != 'never':
+                    start_i = i
+                    end_i = len(words_and_emoticons) - 1
+
+                    for index, word in enumerate(words_with_punc, start= start_i + 1):
+                            if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(PUNC_LIST_STOP_NEGATION):
+                                end_i = index
+                                break
+                    i = end_i
+                    while start_i <= end_i:
+                        sentiments[start_i] = sentiments[start_i] * N_SCALAR
+                        start_i += 1
+                elif word_lower == 'least' or word_lower == 'without' or word_lower == 'never':
+                    if word_lower == 'least' and (words_and_emoticons[i-1] != 'at' or words_and_emoticons[i-1] != "very"):
+                        start_i = i
+                        end_i = len(words_and_emoticons) - 1
+
+                        for index, word in enumerate(words_with_punc, start=start_i + 1):
+                            if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(
+                                    PUNC_LIST_STOP_NEGATION):
+                                end_i = index
+                                break
+                        i = end_i
+                        while start_i <= end_i:
+                            sentiments[start_i] = sentiments[start_i] * N_SCALAR
+                            start_i += 1
+                    elif word_lower == 'never' and (words_and_emoticons[i + 1] == "so" or words_and_emoticons[i + 1] == "this") or (words_and_emoticons[i + 2] == "so" or words_and_emoticons[i + 2] == "this"):
+                        start_i = i
+                        end_i = len(words_and_emoticons) - 1
+
+                        for index, word in enumerate(words_with_punc, start=start_i + 1):
+                            if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(
+                                    PUNC_LIST_STOP_NEGATION):
+                                end_i = index
+                                break
+                        i = end_i
+                        while start_i <= end_i:
+                            sentiments[start_i] = sentiments[start_i] * 1.25
+                            start_i += 1
+                    elif word_lower == 'without' and (words_and_emoticons[i + 1] != "doubt" or words_and_emoticons[i + 2] != "doubt"):
+                        start_i = i
+                        end_i = len(words_and_emoticons) - 1
+
+                        for index, word in enumerate(words_with_punc, start=start_i + 1):
+                            if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(
+                                    PUNC_LIST_STOP_NEGATION):
+                                end_i = index
+                                break
+                        i = end_i
+                        while start_i <= end_i:
+                            sentiments[start_i] = sentiments[start_i] * N_SCALAR
+                            start_i += 1
+                else:
+                    i += 1
+
+        return sentiments
 
     def sentiment_valence(self, valence, sentitext, item, i, sentiments):
         is_cap_diff = sentitext.is_cap_diff
@@ -311,8 +423,7 @@ class SentimentIntensityAnalyzer(object):
                 # (excluding the ones that immediately preceed the item) based
                 # on their distance from the current item.
                 if i > start_i and words_and_emoticons[i - (start_i + 1)].lower() not in self.lexicon:
-                    s = scalar_inc_dec(
-                        words_and_emoticons[i - (start_i + 1)], valence, is_cap_diff)
+                    s = scalar_inc_dec(words_and_emoticons[i - (start_i + 1)], valence, is_cap_diff)
                     if start_i == 1 and s != 0:
                         s = s * 0.95
                     if start_i == 2 and s != 0:
