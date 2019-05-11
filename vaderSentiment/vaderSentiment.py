@@ -438,17 +438,6 @@ class SentimentIntensityAnalyzer(object):
 
         return sentiments
 
-    def _least_check(self, valence, words_and_emoticons, i):
-        # check for negation case using "least"
-        if i > 1 and words_and_emoticons[i - 1].lower() not in self.lexicon \
-                and words_and_emoticons[i - 1].lower() == "least":
-            if words_and_emoticons[i - 2].lower() != "at" and words_and_emoticons[i - 2].lower() != "very":
-                valence = valence * N_SCALAR
-        elif i > 0 and words_and_emoticons[i - 1].lower() not in self.lexicon \
-                and words_and_emoticons[i - 1].lower() == "least":
-            valence = valence * N_SCALAR
-        return valence
-
     @staticmethod
     def _but_check(words_and_emoticons, sentiments):
         # check for modification in sentiment due to contrastive conjunction 'but'
@@ -465,42 +454,6 @@ class SentimentIntensityAnalyzer(object):
                     sentiments.pop(si)
                     sentiments.insert(si, sentiment * 1.5)
         return sentiments
-
-    @staticmethod
-    def _negation_check(valence, words_and_emoticons, start_i, i):
-        words_and_emoticons_lower = [str(w).lower()
-                                     for w in words_and_emoticons]
-        if start_i == 0:
-            # 1 word preceding lexicon word (w/o stopwords)
-            if negated([words_and_emoticons_lower[i - (start_i + 1)]]):
-                valence = valence * N_SCALAR
-        if start_i == 1:
-            if words_and_emoticons_lower[i - 2] == "never" and \
-                    (words_and_emoticons_lower[i - 1] == "so" or
-                     words_and_emoticons_lower[i - 1] == "this"):
-                valence = valence * 1.25
-            elif words_and_emoticons_lower[i - 2] == "without" and \
-                    words_and_emoticons_lower[i - 1] == "doubt":
-                valence = valence
-            # 2 words preceding the lexicon word position
-            elif negated([words_and_emoticons_lower[i - (start_i + 1)]]):
-                valence = valence * N_SCALAR
-        if start_i == 2:
-            if words_and_emoticons_lower[i - 3] == "never" and \
-                    (words_and_emoticons_lower[i - 2] == "so" or words_and_emoticons_lower[i - 2] == "this") or \
-                    (words_and_emoticons_lower[i - 1] == "so" or words_and_emoticons_lower[i - 1] == "this"):
-                valence = valence * 1.25
-            elif words_and_emoticons_lower[i - 3] == "without" and \
-                    (words_and_emoticons_lower[i - 2] == "doubt" or words_and_emoticons_lower[i - 1] == "doubt"):
-                valence = valence
-            # 3 words preceding the lexicon word position
-            elif negated([words_and_emoticons_lower[i - (start_i + 1)]]):
-                valence = valence * N_SCALAR
-        else:
-            # 3 words preceding the lexicon word position
-            negated([words_and_emoticons_lower[i - (start_i + 1)]])
-            valence = valence * N_SCALAR
-        return valence
 
     def _punctuation_emphasis(self, text):
         # add emphasis from exclamation points and question marks
