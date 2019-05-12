@@ -195,10 +195,18 @@ class SentiText(object):
         Leaves contractions and most emoticons
             Does not preserve punc-plus-letter emoticons (e.g. :D)
         """
-        wes = self.text.split()
+        lower_text = self.text.lower()
+
+        if "kind of" in lower_text:
+            lower_text = lower_text.replace("kind of", "kinda")
+
+        if "sort of" in lower_text:
+            lower_text = lower_text.replace("sort of", "sorta")
+
+        wes = lower_text.split()
 
         for idiom in IDIOM_DICT:
-            if idiom in self.text:
+            if idiom in lower_text:
                 index = wes.index(idiom.split(' ', 1)[0])
                 length = len(idiom.split())
                 wes[index] = idiom
