@@ -41,10 +41,10 @@ NEGATE = \
      "ain't", "aren't", "can't", "couldn't", "daren't", "didn't", "doesn't",
      "dont", "hadnt", "hasnt", "havent", "isnt", "mightnt", "mustnt", "neither",
      "don't", "hadn't", "hasn't", "haven't", "isn't", "mightn't", "mustn't",
-     "neednt", "needn't", "never", "none", "nope", "nor", "not", "nothing", "nowhere",
+     "neednt", "needn't", "never", "none", "nope", "no", "nor", "not", "nothing", "nowhere",
      "oughtnt", "shant", "shouldnt", "uhuh", "wasnt", "werent",
      "oughtn't", "shan't", "shouldn't", "uh-uh", "wasn't", "weren't",
-     "without", "wont", "wouldnt", "won't", "wouldn't", "rarely", "seldom", "despite"]
+     "without", "wont", "wouldnt", "won't", "wouldn't", "rarely", "seldom", "despite", "least"]
 
 # booster/dampener 'intensifiers' or 'degree adverbs'
 # http://en.wiktionary.org/wiki/Category:English_degree_adverbs
@@ -58,7 +58,7 @@ BOOSTER_DICT = \
      "greatly": B_INCR, "hella": B_INCR, "highly": B_INCR, "hugely": B_INCR, "incredibly": B_INCR,
      "intensely": B_INCR, "majorly": B_INCR, "more": B_INCR, "most": B_INCR, "particularly": B_INCR,
      "purely": B_INCR, "quite": B_INCR, "really": B_INCR, "remarkably": B_INCR,
-     "so": B_INCR, "substantially": B_INCR,
+     "so": B_INCR, "substantially": B_INCR, "without doubt": B_INCR,
      "thoroughly": B_INCR, "totally": B_INCR, "tremendously": B_INCR,
      "uber": B_INCR, "unbelievably": B_INCR, "unusually": B_INCR, "utterly": B_INCR,
      "very": B_INCR, "sofa king": B_INCR,
@@ -202,6 +202,9 @@ class SentiText(object):
 
         if "sort of" in lower_text:
             lower_text = lower_text.replace("sort of", "sorta")
+
+        if "without doubt" in lower_text:
+            lower_text = lower_text.replace("without doubt", "absolutely")
 
         wes = lower_text.split()
 
@@ -351,19 +354,21 @@ class SentimentIntensityAnalyzer(object):
             # remove punctuation for contractions
             word_lower = re.sub("[^a-zA-Z' ]+", '', word_unchanged)
             if word_lower in NEGATE or word_lower.endswith("n't"):
-                if word_lower != 'least' and word_lower != 'without' and word_lower != 'never':
+                if word_lower != 'least' and word_lower != 'without':
                     start_i = i
                     for j in range(0, len(words_with_punc) - 1):
                         if re.sub("[^a-zA-Z' ]+", '', words_with_punc[j]) == re.sub("[^a-zA-Z' ]+", '', word_unchanged):
                             start_i = j
                             break
+                    if start_i < i:
+                        start_i = i
                     end_i = len(words_and_emoticons) - 1
 
-                    for i in range(start_i + 1, len(words_with_punc)):
-                        word = words_with_punc[i]
+                    for k in range(start_i + 1, len(words_with_punc)):
+                        word = words_with_punc[k]
                         if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(
                                 tuple(PUNC_LIST_STOP_NEGATION)):
-                            end_i = i
+                            end_i = k
                             break
                     i = end_i
                     if end_i > len(words_and_emoticons) - 1:
@@ -372,22 +377,21 @@ class SentimentIntensityAnalyzer(object):
                         if sentiments[start_i] != 0:
                             sentiments[start_i] = sentiments[start_i] * N_SCALAR
                         start_i += 1
-                elif word_lower == 'least' or word_lower == 'without' or word_lower == 'never':
-                    if word_lower == 'least' and (
-                            words_and_emoticons[i - 1] != 'at' or words_and_emoticons[i - 1] != "very"):
+                elif word_lower == 'least' or word_lower == 'without':
+                    if word_lower == 'least' and (words_and_emoticons[i - 1] != 'at' and words_and_emoticons[i - 1] != "very"):#checked case
                         start_i = i
                         for j in range(0, len(words_with_punc) - 1):
-                            if re.sub("[^a-zA-Z' ]+", '', words_with_punc[j]) == re.sub("[^a-zA-Z' ]+", '',
-                                                                                        word_unchanged):
+                            if re.sub("[^a-zA-Z' ]+", '', words_with_punc[j]) == re.sub("[^a-zA-Z' ]+", '',word_unchanged):
                                 start_i = j
                                 break
+                        if start_i < i:
+                            start_i = i
                         end_i = len(words_and_emoticons) - 1
 
-                        for i in range(start_i + 1, len(words_with_punc)):
-                            word = words_with_punc[i]
-                            if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(
-                                    tuple(PUNC_LIST_STOP_NEGATION)):
-                                end_i = i
+                        for k in range(start_i + 1, len(words_with_punc)):
+                            word = words_with_punc[k]
+                            if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(tuple(PUNC_LIST_STOP_NEGATION)):
+                                end_i = k
                                 break
                         i = end_i
                         if end_i > len(words_and_emoticons) - 1:
@@ -396,51 +400,28 @@ class SentimentIntensityAnalyzer(object):
                             if sentiments[start_i] != 0:
                                 sentiments[start_i] = sentiments[start_i] * N_SCALAR
                             start_i += 1
-                elif word_lower == 'never' and (
-                        words_and_emoticons[i + 1] == "so" or words_and_emoticons[i + 1] == "this") or (
-                        words_and_emoticons[i + 2] == "so" or words_and_emoticons[i + 2] == "this"):
-                    start_i = i
-                    for j in range(0, len(words_with_punc) - 1):
-                        if re.sub("[^a-zA-Z' ]+", '', words_with_punc[j]) == re.sub("[^a-zA-Z' ]+", '', word_unchanged):
-                            start_i = j
-                            break
-                    end_i = len(words_and_emoticons) - 1
-
-                    for i in range(start_i + 1, len(words_with_punc)):
-                        word = words_with_punc[i]
-                        if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(
-                                tuple(PUNC_LIST_STOP_NEGATION)):
-                            end_i = i
-                            break
-                    i = end_i
-                    if end_i > len(words_and_emoticons) - 1:
+                    elif word_lower == 'without' and (words_and_emoticons[i + 1] != "doubt" and words_and_emoticons[i + 2] != "doubt"):
+                        start_i = i
+                        for j in range(0, len(words_with_punc) - 1):
+                            if re.sub("[^a-zA-Z' ]+", '', words_with_punc[j]) == re.sub("[^a-zA-Z' ]+", '', word_unchanged):
+                                start_i = j
+                                break
                         end_i = len(words_and_emoticons) - 1
-                    while start_i <= end_i:
-                        if sentiments[start_i] != 0:
-                            sentiments[start_i] = sentiments[start_i] * 1.25
-                        start_i += 1
-                elif word_lower == 'without' and (
-                        words_and_emoticons[i + 1] != "doubt" or words_and_emoticons[i + 2] != "doubt"):
-                    start_i = i
-                    for j in range(0, len(words_with_punc) - 1):
-                        if re.sub("[^a-zA-Z' ]+", '', words_with_punc[j]) == re.sub("[^a-zA-Z' ]+", '', word_unchanged):
-                            start_i = j
-                            break
-                    end_i = len(words_and_emoticons) - 1
 
-                    for i in range(start_i + 1, len(words_with_punc)):
-                        word = words_with_punc[i]
-                        if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(
-                                tuple(PUNC_LIST_STOP_NEGATION)):
-                            end_i = i
-                            break
-                    i = end_i
-                    if end_i > len(words_and_emoticons) - 1:
-                        end_i = len(words_and_emoticons) - 1
-                    while start_i <= end_i:
-                        if sentiments[start_i] != 0:
-                            sentiments[start_i] = sentiments[start_i] * N_SCALAR
-                        start_i += 1
+                        for k in range(start_i + 1, len(words_with_punc)):
+                            word = words_with_punc[k]
+                            if word.endswith(tuple(PUNC_LIST_STOP_NEGATION)) or word.startswith(tuple(PUNC_LIST_STOP_NEGATION)):
+                                end_i = k
+                                break
+                        i = end_i
+                        if end_i > len(words_and_emoticons) - 1:
+                            end_i = len(words_and_emoticons) - 1
+                        while start_i <= end_i:
+                            if sentiments[start_i] != 0:
+                                sentiments[start_i] = sentiments[start_i] * N_SCALAR
+                            start_i += 1
+                    else:
+                        i += 1
             else:
                 i += 1
 
